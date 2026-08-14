@@ -1,0 +1,10 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: bookit-postgres
+    environment:
+      POSTGRES_USER: bookit
+      POSTGRES_PASSWORD: bookit123
+      POSTGRES_DB: bookit
+    ports:
+      - "5433:5432"

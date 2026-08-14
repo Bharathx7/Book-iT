@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         UserRole  @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bookings     Booking[]
+  reviews      Review[]
+  ownedVenues  Venue[]
+}
+
+model Venue {
+  id           String     @id @default(uuid())
+  name         String
+  description  String?
+  address      String?
+  pricePerHour Decimal    @default(0)
+  ownerId      String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  bookings     Booking[]
+  reviews      Review[]
+  availability TimeSlot[]
+  owner        User       @relation(fields: [ownerId], references: [id])
+}
+
+model Booking {
+  id           String        @id @default(uuid())
+  userId       String
+  venueId      String
+  startTime    DateTime
+  endTime      DateTime
+  status       BookingStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reminderSent Boolean       @default(false)
+  user         User          @relation(fields: [userId], references: [id])
+  venue        Venue         @relation(fields: [venueId], references: [id])
+  review       Review?
+
+  @@index([venueId, startTime, endTime])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  venueId   String
+  bookingId String   @unique
+  rating    Int
+  review    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  venue     Venue    @relation(fields: [venueId], references: [id])
+
+  @@index([venueId])
+  @@index([userId])
+}
+
+model TimeSlot {
+  id        String   @id @default(uuid())
+  venueId   String
+  startTime DateTime
+  endTime   DateTime
+  venue     Venue    @relation(fields: [venueId], references: [id])
+
+  @@index([venueId, startTime])
+}
+
+enum UserRole {
+  USER
+  PROVIDER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
