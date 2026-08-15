@@ -10,6 +10,12 @@ export const createVenueSchema = z.object({
     .string()
     .optional(),
 
+  category: z
+    .string()
+    .min(2, "Category must be at least 2 characters")
+    .max(50, "Category is too long")
+    .optional(),
+
   address: z
     .string()
     .optional(),

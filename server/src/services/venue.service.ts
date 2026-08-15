@@ -3,6 +3,7 @@ import prisma from "../config/prisma.js";
 interface CreateVenueInput {
   name: string;
   description?: string;
+  category?: string;
   address?: string;
   pricePerHour?: number;
 }
@@ -15,6 +16,7 @@ export const createVenue = async (
     data: {
       name: data.name,
       description: data.description ?? null,
+      category: data.category ?? "Other",
       address: data.address ?? null,
       pricePerHour: data.pricePerHour ?? 0,
       ownerId,
@@ -33,6 +35,7 @@ export const getVenues = async () => {
 
   return venues;
 };
+
 export const getMyVenues = async (ownerId: string) => {
   const venues = await prisma.venue.findMany({
     where: {
@@ -45,6 +48,7 @@ export const getMyVenues = async (ownerId: string) => {
 
   return venues;
 };
+
 export const getVenueById = async (id: string) => {
   const venue = await prisma.venue.findUnique({
     where: {
@@ -58,19 +62,20 @@ export const getVenueById = async (id: string) => {
 interface UpdateVenueInput {
   name?: string;
   description?: string;
+  category?: string;
   address?: string;
   pricePerHour?: number;
-}
+};
 
 export const updateVenue = async (
   id: string,
   ownerId: string,
+  isAdmin: boolean,
   data: UpdateVenueInput
 ) => {
-  const venue = await prisma.venue.findFirst({
+  const venue = await prisma.venue.findUnique({
     where: {
       id,
-      ownerId,
     },
   });
 
@@ -78,13 +83,15 @@ export const updateVenue = async (
     return null;
   }
 
+  if (!isAdmin && venue.ownerId !== ownerId) {
+    return null;
+  }
+
   const updatedVenue = await prisma.venue.update({
     where: {
       id,
     },
-    data: {
-      ...data,
-    },
+    data,
   });
 
   return updatedVenue;
@@ -92,16 +99,20 @@ export const updateVenue = async (
 
 export const deleteVenue = async (
   id: string,
-  ownerId: string
+  ownerId: string,
+  isAdmin: boolean
 ) => {
-  const venue = await prisma.venue.findFirst({
+  const venue = await prisma.venue.findUnique({
     where: {
       id,
-      ownerId,
     },
   });
 
   if (!venue) {
+    return null;
+  }
+
+  if (!isAdmin && venue.ownerId !== ownerId) {
     return null;
   }
 

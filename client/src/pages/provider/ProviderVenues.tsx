@@ -7,6 +7,15 @@ import {
   type Venue,
 } from "../../services/venue.api";
 
+const VENUE_CATEGORIES = [
+  "Football",
+  "Cricket",
+  "Badminton",
+  "Tennis",
+  "Basketball",
+  "Other",
+];
+
 function ProviderVenues() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +26,7 @@ function ProviderVenues() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Other");
   const [address, setAddress] = useState("");
   const [pricePerHour, setPricePerHour] = useState("");
 
@@ -47,6 +57,7 @@ function ProviderVenues() {
   function resetForm() {
     setName("");
     setDescription("");
+    setCategory("Other");
     setAddress("");
     setPricePerHour("");
     setEditingVenueId(null);
@@ -62,6 +73,7 @@ function ProviderVenues() {
     setEditingVenueId(venue.id);
     setName(venue.name);
     setDescription(venue.description || "");
+    setCategory(venue.category || "Other");
     setAddress(venue.address || "");
     setPricePerHour(venue.pricePerHour);
     setShowForm(true);
@@ -80,6 +92,7 @@ function ProviderVenues() {
       const venueData = {
         name,
         description,
+        category,
         address,
         pricePerHour: Number(pricePerHour),
       };
@@ -199,6 +212,28 @@ function ProviderVenues() {
 
             <div>
               <label className="mb-1 block text-sm font-medium">
+                Category
+              </label>
+
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                required
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5"
+              >
+                {VENUE_CATEGORIES.map((venueCategory) => (
+                  <option
+                    key={venueCategory}
+                    value={venueCategory}
+                  >
+                    {venueCategory}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">
                 Address
               </label>
 
@@ -278,6 +313,10 @@ function ProviderVenues() {
               <p className="mt-2 text-gray-600">
                 {venue.description ||
                   "No description provided"}
+              </p>
+
+              <p className="mt-3 text-sm font-medium text-blue-600">
+                Category: {venue.category}
               </p>
 
               <p className="mt-3 text-sm text-gray-500">

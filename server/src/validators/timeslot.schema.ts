@@ -21,3 +21,21 @@ export const createTimeSlotSchema = z
       path: ["endTime"],
     }
   );
+
+export const updateTimeSlotSchema = z
+  .object({
+    startTime: z
+      .string()
+      .datetime("Invalid start time"),
+
+    endTime: z
+      .string()
+      .datetime("Invalid end time"),
+  })
+  .refine(
+    (data) => new Date(data.startTime) < new Date(data.endTime),
+    {
+      message: "Start time must be before end time",
+      path: ["endTime"],
+    }
+  );

@@ -3,12 +3,22 @@ import { useNavigate } from "react-router-dom";
 import { getVenues, type Venue } from "../../services/venue.api";
 import { getVenueTimeSlots } from "../../services/timeslot.api";
 
+const VENUE_CATEGORIES = [
+  "Football",
+  "Cricket",
+  "Badminton",
+  "Tennis",
+  "Basketball",
+  "Other",
+];
+
 function BrowseVenues() {
   const navigate = useNavigate();
 
   const [venues, setVenues] = useState<Venue[]>([]);
   const [location, setLocation] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const [availableVenueIds, setAvailableVenueIds] =
     useState<Set<string> | null>(null);
@@ -29,6 +39,7 @@ function BrowseVenues() {
         setVenues(data);
       } catch (err) {
         console.error("Failed to load venues:", err);
+
         setError(
           "Failed to load venues. Please try again."
         );
@@ -115,12 +126,21 @@ function BrowseVenues() {
         availableVenueIds === null ||
         availableVenueIds.has(venue.id);
 
-      return matchesLocation && matchesDate;
+      const matchesCategory =
+        !selectedCategory ||
+        venue.category === selectedCategory;
+
+      return (
+        matchesLocation &&
+        matchesDate &&
+        matchesCategory
+      );
     });
   }, [
     venues,
     location,
     selectedDate,
+    selectedCategory,
     availableVenueIds,
   ]);
 
@@ -150,11 +170,12 @@ function BrowseVenues() {
         </h1>
 
         <p className="mt-1 text-gray-600">
-          Find a venue based on location and availability.
+          Find a venue based on location,
+          category, and availability.
         </p>
       </div>
 
-      <div className="mb-6 grid gap-4 rounded-lg border bg-white p-4 shadow-sm md:grid-cols-2">
+      <div className="mb-6 grid gap-4 rounded-lg border bg-white p-4 shadow-sm md:grid-cols-3">
         <div>
           <label
             htmlFor="location"
@@ -193,6 +214,35 @@ function BrowseVenues() {
             className="mt-2 w-full rounded-md border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+
+        <div>
+          <label
+            htmlFor="category"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Category
+          </label>
+
+          <select
+            id="category"
+            value={selectedCategory}
+            onChange={(event) =>
+              setSelectedCategory(event.target.value)
+            }
+            className="mt-2 w-full rounded-md border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Categories</option>
+
+            {VENUE_CATEGORIES.map((category) => (
+              <option
+                key={category}
+                value={category}
+              >
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {checkingAvailability && (
@@ -221,9 +271,14 @@ function BrowseVenues() {
                   "No description available"}
               </p>
 
+              <p className="mt-3 text-sm font-medium text-blue-600">
+                Category: {venue.category}
+              </p>
+
               <p className="mt-3 text-sm text-gray-600">
                 Address:{" "}
-                {venue.address || "Address not provided"}
+                {venue.address ||
+                  "Address not provided"}
               </p>
 
               <p className="mt-2 font-semibold text-gray-900">
@@ -233,7 +288,9 @@ function BrowseVenues() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/customer/venues/${venue.id}`)
+                  navigate(
+                    `/customer/venues/${venue.id}`
+                  )
                 }
                 className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >

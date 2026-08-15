@@ -5,6 +5,7 @@ import {
   getVenueTimeSlotsController,
   deleteTimeSlotController,
   checkAvailabilityController,
+  updateTimeSlotController,
 } from "../controllers/timeslot.controller.js";
 
 import { authenticate } from "../middleware/auth.middleware.js";
@@ -26,6 +27,14 @@ router.post(
 router.get(
   "/venue/:venueId",
   asyncHandler(getVenueTimeSlotsController)
+);
+
+router.put(
+  "/:id",
+  authenticate,
+  authorize("ADMIN", "PROVIDER"),
+  validate(createTimeSlotSchema),
+  asyncHandler(updateTimeSlotController)
 );
 
 router.delete(

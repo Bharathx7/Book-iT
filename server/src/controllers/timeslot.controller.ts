@@ -4,6 +4,7 @@ import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import {
   createTimeSlot,
   getVenueTimeSlots,
+  updateTimeSlot,
   deleteTimeSlot,
   checkAvailability,
 } from "../services/timeslot.service.js";
@@ -50,6 +51,39 @@ export const getVenueTimeSlotsController = async (
 
   return res.status(200).json({
     timeSlots,
+  });
+};
+
+export const updateTimeSlotController = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  const { id } = req.params;
+  const { startTime, endTime } = req.body;
+
+  if (!id || Array.isArray(id)) {
+    return res.status(400).json({
+      message: "Valid time slot id is required",
+    });
+  }
+
+  if (!req.user) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  const timeSlot = await updateTimeSlot({
+    id,
+    startTime: new Date(startTime),
+    endTime: new Date(endTime),
+    userId: req.user.id,
+    userRole: req.user.role,
+  });
+
+  return res.status(200).json({
+    message: "Time slot updated successfully",
+    timeSlot,
   });
 };
 

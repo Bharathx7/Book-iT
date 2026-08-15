@@ -14,7 +14,13 @@ export const createVenueController = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
-  const { name, description, address, pricePerHour } = req.body;
+  const {
+    name,
+    description,
+    category,
+    address,
+    pricePerHour,
+  } = req.body;
 
   const ownerId = req.user?.id;
 
@@ -28,6 +34,7 @@ export const createVenueController = async (
     {
       name,
       description,
+      category,
       address,
       pricePerHour,
     },
@@ -115,14 +122,34 @@ export const updateVenueController = async (
     });
   }
 
-  const { name, description, address, pricePerHour } = req.body;
-
-  const venue = await updateVenue(id, ownerId, {
+  const {
     name,
     description,
+    category,
     address,
     pricePerHour,
-  });
+  } = req.body;
+
+  const isAdmin = req.user?.role === "ADMIN";
+
+  const venue = await updateVenue(
+    id,
+    ownerId,
+    isAdmin,
+    {
+      name,
+      description,
+      category,
+      address,
+      pricePerHour,
+    }
+  );
+
+  if (!venue) {
+    return res.status(404).json({
+      message: "Venue not found or you are not authorized",
+    });
+  }
 
   return res.status(200).json({
     message: "Venue updated successfully",
@@ -150,7 +177,13 @@ export const deleteVenueController = async (
     });
   }
 
-  const venue = await deleteVenue(id, ownerId);
+  const isAdmin = req.user?.role === "ADMIN";
+
+  const venue = await deleteVenue(
+    id,
+    ownerId,
+    isAdmin
+  );
 
   if (!venue) {
     return res.status(403).json({

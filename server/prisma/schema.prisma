@@ -24,6 +24,7 @@ model Venue {
   id           String     @id @default(uuid())
   name         String
   description  String?
+  category     String     @default("Other")
   address      String?
   pricePerHour Decimal    @default(0)
   ownerId      String

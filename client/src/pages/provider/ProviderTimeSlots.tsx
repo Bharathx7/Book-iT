@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   getVenueTimeSlots,
   createTimeSlot,
+  updateTimeSlot,
   deleteTimeSlot,
   type TimeSlot,
 } from "../../services/timeslot.api";
@@ -16,10 +17,13 @@ function ProviderTimeSlots() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
+  const [deletingSlotId, setDeletingSlotId] =
+    useState<string | null>(null);
 
   const [error, setError] = useState("");
 
@@ -78,7 +82,13 @@ function ProviderTimeSlots() {
     }
   }, [selectedVenueId]);
 
-  async function handleCreateTimeSlot(
+  function resetForm() {
+    setStartTime("");
+    setEndTime("");
+    setEditingSlotId(null);
+  }
+
+  async function handleSubmitTimeSlot(
     event: React.FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
@@ -88,28 +98,61 @@ function ProviderTimeSlots() {
       return;
     }
 
+    if (!startTime || !endTime) {
+      setError("Start time and end time are required.");
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
 
-      await createTimeSlot({
-        venueId: selectedVenueId,
-        startTime: new Date(startTime).toISOString(),
-        endTime: new Date(endTime).toISOString(),
-      });
+      const start = new Date(startTime);
+      const end = new Date(endTime);
 
-      setStartTime("");
-      setEndTime("");
+      if (start >= end) {
+        setError("Start time must be before end time.");
+        return;
+      }
+
+      if (editingSlotId) {
+        await updateTimeSlot(editingSlotId, {
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+        });
+      } else {
+        await createTimeSlot({
+          venueId: selectedVenueId,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+        });
+      }
+
+      resetForm();
 
       await loadTimeSlots(selectedVenueId);
     } catch (error: any) {
       setError(
         error.response?.data?.message ||
-          "Failed to create time slot."
+          "Failed to save time slot."
       );
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleEditTimeSlot(slot: TimeSlot) {
+    setEditingSlotId(slot.id);
+
+    setStartTime(toDateTimeLocal(slot.startTime));
+    setEndTime(toDateTimeLocal(slot.endTime));
+
+    setError("");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   async function handleDeleteTimeSlot(slotId: string) {
@@ -127,6 +170,10 @@ function ProviderTimeSlots() {
 
       await deleteTimeSlot(slotId);
 
+      if (editingSlotId === slotId) {
+        resetForm();
+      }
+
       await loadTimeSlots(selectedVenueId);
     } catch (error: any) {
       setError(
@@ -136,6 +183,26 @@ function ProviderTimeSlots() {
     } finally {
       setDeletingSlotId(null);
     }
+  }
+
+  function toDateTimeLocal(date: string) {
+    const value = new Date(date);
+
+    const year = value.getFullYear();
+    const month = String(
+      value.getMonth() + 1
+    ).padStart(2, "0");
+    const day = String(
+      value.getDate()
+    ).padStart(2, "0");
+    const hours = String(
+      value.getHours()
+    ).padStart(2, "0");
+    const minutes = String(
+      value.getMinutes()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
   function formatDateTime(date: string) {
@@ -187,9 +254,10 @@ function ProviderTimeSlots() {
 
             <select
               value={selectedVenueId}
-              onChange={(e) =>
-                setSelectedVenueId(e.target.value)
-              }
+              onChange={(e) => {
+                setSelectedVenueId(e.target.value);
+                resetForm();
+              }}
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5"
             >
               {venues.map((venue) => (
@@ -201,12 +269,26 @@ function ProviderTimeSlots() {
           </div>
 
           <div className="mb-8 rounded-xl bg-white p-6 shadow">
-            <h2 className="mb-5 text-xl font-bold text-gray-900">
-              Create Time Slot
-            </h2>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingSlotId
+                  ? "Edit Time Slot"
+                  : "Create Time Slot"}
+              </h2>
+
+              {editingSlotId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-300"
+                >
+                  Cancel Edit
+                </button>
+              )}
+            </div>
 
             <form
-              onSubmit={handleCreateTimeSlot}
+              onSubmit={handleSubmitTimeSlot}
               className="grid gap-4 md:grid-cols-3"
             >
               <div>
@@ -248,8 +330,10 @@ function ProviderTimeSlots() {
                   className="w-full rounded-lg bg-green-600 px-5 py-2.5 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
                 >
                   {saving
-                    ? "Creating..."
-                    : "Create Time Slot"}
+                    ? "Saving..."
+                    : editingSlotId
+                      ? "Update Time Slot"
+                      : "Create Time Slot"}
                 </button>
               </div>
             </form>
@@ -287,20 +371,32 @@ function ProviderTimeSlots() {
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDeleteTimeSlot(slot.id)
-                      }
-                      disabled={
-                        deletingSlotId === slot.id
-                      }
-                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {deletingSlotId === slot.id
-                        ? "Deleting..."
-                        : "Delete"}
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEditTimeSlot(slot)
+                        }
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDeleteTimeSlot(slot.id)
+                        }
+                        disabled={
+                          deletingSlotId === slot.id
+                        }
+                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deletingSlotId === slot.id
+                          ? "Deleting..."
+                          : "Delete"}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

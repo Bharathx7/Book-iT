@@ -4,6 +4,7 @@ export interface Venue {
   id: string;
   name: string;
   description: string | null;
+  category: string;
   address: string | null;
   pricePerHour: string;
   ownerId: string;
@@ -40,6 +41,7 @@ export const getVenueById = async (
 export interface CreateVenueRequest {
   name: string;
   description?: string;
+  category: string;
   address?: string;
   pricePerHour: number;
 }
@@ -58,6 +60,7 @@ export const createVenue = async (
 export interface UpdateVenueRequest {
   name?: string;
   description?: string;
+  category?: string;
   address?: string;
   pricePerHour?: number;
 }

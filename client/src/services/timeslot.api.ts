@@ -38,6 +38,23 @@ export const createTimeSlot = async (
   return response.data.timeSlot;
 };
 
+export interface UpdateTimeSlotRequest {
+  startTime: string;
+  endTime: string;
+}
+
+export const updateTimeSlot = async (
+  timeSlotId: string,
+  data: UpdateTimeSlotRequest
+): Promise<TimeSlot> => {
+  const response = await api.put<{ timeSlot: TimeSlot }>(
+    `/timeslots/${timeSlotId}`,
+    data
+  );
+
+  return response.data.timeSlot;
+};
+
 export const deleteTimeSlot = async (
   timeSlotId: string
 ): Promise<void> => {
