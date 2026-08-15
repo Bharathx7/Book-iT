@@ -63,23 +63,26 @@ export const createBooking = async ({
 
   // Check overlapping bookings
   const overlappingBooking = await prisma.booking.findFirst({
-    where: {
-      venueId,
-      status: {
-        not: "CANCELLED",
-      },
-      startTime: {
-        lt: endTime,
-      },
-      endTime: {
-        gt: startTime,
-      },
+  where: {
+    venueId,
+    status: {
+      in: ["PENDING", "CONFIRMED"],
     },
-  });
+    startTime: {
+      lt: endTime,
+    },
+    endTime: {
+      gt: startTime,
+    },
+  },
+});
 
-  if (overlappingBooking) {
-    throw new Error("This time is already booked");
-  }
+
+
+
+if (overlappingBooking) {
+  throw new Error("This time is already booked");
+}
 
   return prisma.booking.create({
     data: {
@@ -116,6 +119,29 @@ export const getUserBookings = async (userId: string) => {
   });
 };
 
+export const getProviderBookings = async (providerId: string) => {
+  return prisma.booking.findMany({
+    where: {
+      venue: {
+        ownerId: providerId,
+      },
+    },
+    include: {
+      venue: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+};
+
 export const getBookingById = async (
   bookingId: string,
   userId: string
@@ -139,12 +165,12 @@ export const getBookingById = async (
 
 export const cancelBooking = async (
   bookingId: string,
-  userId: string
+  userId: string,
+  userRole: string
 ) => {
-  const booking = await prisma.booking.findFirst({
+  const booking = await prisma.booking.findUnique({
     where: {
       id: bookingId,
-      userId,
     },
     include: {
       user: true,
@@ -156,27 +182,58 @@ export const cancelBooking = async (
     throw new Error("Booking not found");
   }
 
+  // Customer can cancel only their own booking.
+  // Provider can cancel only bookings for their own venue.
+  // Admin can cancel any booking.
+  if (
+    userRole === "USER" &&
+    booking.userId !== userId
+  ) {
+    throw new Error(
+      "You do not have permission to cancel this booking"
+    );
+  }
+
+  if (
+    userRole === "PROVIDER" &&
+    booking.venue.ownerId !== userId
+  ) {
+    throw new Error(
+      "You do not have permission to cancel this booking"
+    );
+  }
+
+  if (
+    userRole !== "USER" &&
+    userRole !== "PROVIDER" &&
+    userRole !== "ADMIN"
+  ) {
+    throw new Error(
+      "You do not have permission to cancel this booking"
+    );
+  }
+
   if (booking.status === "CANCELLED") {
     throw new Error("Booking is already cancelled");
   }
 
-const updatedBooking = await prisma.booking.update({
-  where: {
-    id: bookingId,
-  },
-  data: {
-    status: "CANCELLED",
-  },
-});
+  const updatedBooking = await prisma.booking.update({
+    where: {
+      id: bookingId,
+    },
+    data: {
+      status: "CANCELLED",
+    },
+  });
 
-const io = getIO();
+  const io = getIO();
 
-io.emit("bookingCancelled", {
-  bookingId: updatedBooking.id,
-  userId: updatedBooking.userId,
-  venueId: updatedBooking.venueId,
-  status: updatedBooking.status,
-});
+  io.emit("bookingCancelled", {
+    bookingId: updatedBooking.id,
+    userId: updatedBooking.userId,
+    venueId: updatedBooking.venueId,
+    status: updatedBooking.status,
+  });
 
   await sendBookingCancellationEmail(
     booking.user.email,
@@ -190,7 +247,11 @@ io.emit("bookingCancelled", {
 };
 
 
-export const confirmBooking = async (bookingId: string) => {
+export const confirmBooking = async (
+  bookingId: string,
+  userId: string,
+  userRole: string
+) => {
   const booking = await prisma.booking.findUnique({
     where: {
       id: bookingId,
@@ -205,8 +266,19 @@ export const confirmBooking = async (bookingId: string) => {
     throw new Error("Booking not found");
   }
 
+  if (
+    userRole !== "ADMIN" &&
+    booking.venue.ownerId !== userId
+  ) {
+    throw new Error(
+      "You do not have permission to manage this booking"
+    );
+  }
+
   if (booking.status === "CANCELLED") {
-    throw new Error("Cancelled booking cannot be confirmed");
+    throw new Error(
+      "Cancelled booking cannot be confirmed"
+    );
   }
 
   const updatedBooking = await prisma.booking.update({
@@ -220,12 +292,12 @@ export const confirmBooking = async (bookingId: string) => {
 
   const io = getIO();
 
-io.emit("bookingConfirmed", {
-  bookingId: updatedBooking.id,
-  userId: updatedBooking.userId,
-  venueId: updatedBooking.venueId,
-  status: updatedBooking.status,
-});
+  io.emit("bookingConfirmed", {
+    bookingId: updatedBooking.id,
+    userId: updatedBooking.userId,
+    venueId: updatedBooking.venueId,
+    status: updatedBooking.status,
+  });
 
   await sendBookingConfirmationEmail(
     booking.user.email,
@@ -237,10 +309,18 @@ io.emit("bookingConfirmed", {
 
   return updatedBooking;
 };
-export const completeBooking = async (bookingId: string) => {
+
+export const completeBooking = async (
+  bookingId: string,
+  userId: string,
+  userRole: string
+) => {
   const booking = await prisma.booking.findUnique({
     where: {
       id: bookingId,
+    },
+    include: {
+      venue: true,
     },
   });
 
@@ -248,32 +328,44 @@ export const completeBooking = async (bookingId: string) => {
     throw new Error("Booking not found");
   }
 
+  if (
+    userRole !== "ADMIN" &&
+    booking.venue.ownerId !== userId
+  ) {
+    throw new Error(
+      "You do not have permission to manage this booking"
+    );
+  }
+
   if (booking.status === "CANCELLED") {
-    throw new Error("Cancelled booking cannot be completed");
+    throw new Error(
+      "Cancelled booking cannot be completed"
+    );
   }
 
   if (booking.status !== "CONFIRMED") {
-    throw new Error("Only confirmed bookings can be completed");
+    throw new Error(
+      "Only confirmed bookings can be completed"
+    );
   }
 
   const updatedBooking = await prisma.booking.update({
-  where: {
-    id: bookingId,
-  },
-  data: {
-    status: "COMPLETED",
-  },
-});
+    where: {
+      id: bookingId,
+    },
+    data: {
+      status: "COMPLETED",
+    },
+  });
 
-const io = getIO();
+  const io = getIO();
 
-io.emit("bookingCompleted", {
-  bookingId: updatedBooking.id,
-  userId: updatedBooking.userId,
-  venueId: updatedBooking.venueId,
-  status: updatedBooking.status,
-});
+  io.emit("bookingCompleted", {
+    bookingId: updatedBooking.id,
+    userId: updatedBooking.userId,
+    venueId: updatedBooking.venueId,
+    status: updatedBooking.status,
+  });
 
-return updatedBooking;
-
+  return updatedBooking;
 };

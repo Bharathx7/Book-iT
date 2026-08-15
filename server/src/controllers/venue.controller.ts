@@ -7,6 +7,7 @@ import {
   getVenueById,
   updateVenue,
   deleteVenue,
+  getMyVenues,
 } from "../services/venue.service.js";
 
 export const createVenueController = async (
@@ -44,6 +45,25 @@ export const getVenuesController = async (
   res: Response
 ) => {
   const venues = await getVenues();
+
+  return res.status(200).json({
+    venues,
+  });
+};
+
+export const getMyVenuesController = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  const ownerId = req.user?.id;
+
+  if (!ownerId) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  const venues = await getMyVenues(ownerId);
 
   return res.status(200).json({
     venues,

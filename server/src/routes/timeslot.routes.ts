@@ -18,7 +18,7 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "PROVIDER"),
   validate(createTimeSlotSchema),
   asyncHandler(createTimeSlotController)
 );
@@ -31,7 +31,7 @@ router.get(
 router.delete(
   "/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "PROVIDER"),
   asyncHandler(deleteTimeSlotController)
 );
 

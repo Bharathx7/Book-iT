@@ -5,6 +5,7 @@ import {
   getVenueByIdController,
   updateVenueController,
   deleteVenueController,
+  getMyVenuesController,
 } from "../controllers/venue.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorize } from "../middleware/role.middleware.js";
@@ -57,7 +58,7 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "PROVIDER"),
   validate(createVenueSchema),
   asyncHandler(createVenueController)
 );
@@ -76,6 +77,14 @@ router.get(
   "/",
   asyncHandler(getVenuesController)
 );
+
+router.get(
+  "/my",
+  authenticate,
+  authorize("PROVIDER"),
+  asyncHandler(getMyVenuesController)
+);
+
 /**
  * @swagger
  * /api/venues/{id}:
@@ -143,7 +152,7 @@ router.get(
 router.put(
   "/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "PROVIDER"),
   asyncHandler(updateVenueController)
 );
 /**
@@ -174,7 +183,7 @@ router.put(
 router.delete(
   "/:id",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "PROVIDER"),
   asyncHandler(deleteVenueController)
 );
 

@@ -4,6 +4,7 @@ import {
   createBookingController,
   getUserBookingsController,
   getBookingByIdController,
+  getProviderBookingsController,
   cancelBookingController,
   confirmBookingController,
   completeBookingController,
@@ -56,7 +57,7 @@ const router = Router();
  *       401:
  *         description: Unauthorized
  */
- 
+
 router.post(
   "/",
   authenticate,
@@ -64,35 +65,77 @@ router.post(
   asyncHandler(createBookingController)
 );
 
+/**
+ * Get bookings created by the logged-in customer
+ */
 router.get(
   "/",
   authenticate,
   asyncHandler(getUserBookingsController)
 );
 
+/**
+ * Get bookings for venues owned by the logged-in provider
+ *
+ * IMPORTANT:
+ * This route must come before /:id
+ */
+router.get(
+  "/provider",
+  authenticate,
+  authorize("PROVIDER"),
+  asyncHandler(getProviderBookingsController)
+);
+
+/**
+ * Get a specific booking
+ */
 router.get(
   "/:id",
   authenticate,
   asyncHandler(getBookingByIdController)
 );
 
+/**
+ * Cancel booking
+ *
+ * Currently handled by the booking owner.
+ */
 router.patch(
   "/:id/cancel",
   authenticate,
+  authorize("USER", "PROVIDER", "ADMIN"),
   asyncHandler(cancelBookingController)
 );
 
+/**
+ * Confirm booking
+ *
+ * ADMIN can confirm any booking.
+ * PROVIDER can confirm only their own venue's booking.
+ *
+ * Ownership is checked inside the service.
+ */
 router.patch(
   "/:id/confirm",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "PROVIDER"),
   asyncHandler(confirmBookingController)
 );
 
+/**
+ * Complete booking
+ *
+ * ADMIN can complete any booking.
+ * PROVIDER can complete only their own venue's booking.
+ *
+ * Ownership is checked inside the service.
+ */
 router.patch(
   "/:id/complete",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "PROVIDER"),
   asyncHandler(completeBookingController)
 );
+
 export default router;

@@ -4,14 +4,17 @@ interface CreateTimeSlotInput {
   venueId: string;
   startTime: Date;
   endTime: Date;
+  userId: string;
+  userRole: string;
 }
 
 export const createTimeSlot = async ({
   venueId,
   startTime,
   endTime,
+  userId,
+  userRole,
 }: CreateTimeSlotInput) => {
-  // Check venue exists
   const venue = await prisma.venue.findUnique({
     where: {
       id: venueId,
@@ -22,12 +25,14 @@ export const createTimeSlot = async ({
     throw new Error("Venue not found");
   }
 
-  // Validate time
+  if (userRole !== "ADMIN" && venue.ownerId !== userId) {
+    throw new Error("You do not have permission to manage this venue");
+  }
+
   if (startTime >= endTime) {
     throw new Error("Start time must be before end time");
   }
 
-  // Check for overlapping time slots
   const overlappingSlot = await prisma.timeSlot.findFirst({
     where: {
       venueId,
@@ -74,15 +79,29 @@ export const getVenueTimeSlots = async (venueId: string) => {
   });
 };
 
-export const deleteTimeSlot = async (id: string) => {
+export const deleteTimeSlot = async (
+  id: string,
+  userId: string,
+  userRole: string
+) => {
   const timeSlot = await prisma.timeSlot.findUnique({
     where: {
       id,
+    },
+    include: {
+      venue: true,
     },
   });
 
   if (!timeSlot) {
     throw new Error("Time slot not found");
+  }
+
+  if (
+    userRole !== "ADMIN" &&
+    timeSlot.venue.ownerId !== userId
+  ) {
+    throw new Error("You do not have permission to manage this time slot");
   }
 
   return prisma.timeSlot.delete({

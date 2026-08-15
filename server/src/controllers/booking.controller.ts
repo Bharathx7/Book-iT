@@ -1,16 +1,37 @@
 import type { Request, Response } from "express";
+import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 
 import {
   createBooking,
   getUserBookings,
+  getProviderBookings,
   getBookingById,
   cancelBooking,
   confirmBooking,
   completeBooking,
 } from "../services/booking.service.js";
 
+export const getProviderBookingsController = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  const providerId = req.user?.id;
+
+  if (!providerId) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  const bookings = await getProviderBookings(providerId);
+
+  return res.status(200).json({
+    bookings,
+  });
+};
+
 export const completeBookingController = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   const { id } = req.params;
@@ -21,7 +42,17 @@ export const completeBookingController = async (
     });
   }
 
-  const booking = await completeBooking(id);
+  if (!req.user) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  const booking = await completeBooking(
+    id,
+    req.user.id,
+    req.user.role
+  );
 
   return res.status(200).json({
     message: "Booking completed successfully",
@@ -102,11 +133,10 @@ export const getBookingByIdController = async (
 };
 
 export const cancelBookingController = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   const { id } = req.params;
-  const userId = req.user?.id;
 
   if (!id || Array.isArray(id)) {
     return res.status(400).json({
@@ -114,13 +144,17 @@ export const cancelBookingController = async (
     });
   }
 
-  if (!userId) {
+  if (!req.user) {
     return res.status(401).json({
       message: "Unauthorized",
     });
   }
 
-  const booking = await cancelBooking(id, userId);
+  const booking = await cancelBooking(
+    id,
+    req.user.id,
+    req.user.role
+  );
 
   return res.status(200).json({
     message: "Booking cancelled successfully",
@@ -129,7 +163,7 @@ export const cancelBookingController = async (
 };
 
 export const confirmBookingController = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
 ) => {
   const { id } = req.params;
@@ -140,7 +174,17 @@ export const confirmBookingController = async (
     });
   }
 
-  const booking = await confirmBooking(id);
+  if (!req.user) {
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
+  }
+
+  const booking = await confirmBooking(
+    id,
+    req.user.id,
+    req.user.role
+  );
 
   return res.status(200).json({
     message: "Booking confirmed successfully",

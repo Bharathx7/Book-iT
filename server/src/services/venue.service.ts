@@ -33,7 +33,18 @@ export const getVenues = async () => {
 
   return venues;
 };
+export const getMyVenues = async (ownerId: string) => {
+  const venues = await prisma.venue.findMany({
+    where: {
+      ownerId,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
 
+  return venues;
+};
 export const getVenueById = async (id: string) => {
   const venue = await prisma.venue.findUnique({
     where: {

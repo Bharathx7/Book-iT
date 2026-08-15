@@ -1,44 +1,115 @@
-import { jest, describe, beforeEach, test, expect } from "@jest/globals";
+import {
+  jest,
+  describe,
+  beforeEach,
+  test,
+  expect,
+} from "@jest/globals";
+
+type UserMock = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+type VenueMock = {
+  id: string;
+  name: string;
+};
+
+type TimeSlotMock = {
+  id: string;
+  venueId: string;
+  startTime: Date;
+  endTime: Date;
+};
+
+type BookingMock = {
+  id: string;
+  venueId: string;
+  startTime: Date;
+  endTime: Date;
+  status: string;
+};
+
+type CreatedBookingMock = {
+  id: string;
+  userId: string;
+  venueId: string;
+  startTime: Date;
+  endTime: Date;
+  status: string;
+  venue: {
+    id: string;
+    name: string;
+  };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+};
+
+type CreateBookingArgs = {
+  data: {
+    userId: string;
+    venueId: string;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+  };
+  include: {
+    venue: boolean;
+    user: {
+      select: {
+        id: boolean;
+        name: boolean;
+        email: boolean;
+      };
+    };
+  };
+};
 
 const mockPrisma = {
   user: {
-    findUnique: jest.fn(),
+    findUnique: jest.fn<() => Promise<UserMock | null>>(),
   },
+
   venue: {
-    findUnique: jest.fn(),
+    findUnique: jest.fn<() => Promise<VenueMock | null>>(),
   },
+
   timeSlot: {
-    findFirst: jest.fn(),
+    findFirst: jest.fn<() => Promise<TimeSlotMock | null>>(),
   },
+
   booking: {
-    findFirst: jest.fn(),
-    create: jest.fn(),
+    findFirst: jest.fn<() => Promise<BookingMock | null>>(),
+
+    create: jest.fn<
+      (args: CreateBookingArgs) => Promise<CreatedBookingMock>
+    >(),
   },
 };
 
-jest.unstable_mockModule("../src/config/prisma.ts", () => ({
+jest.unstable_mockModule("../src/config/prisma.js", () => ({
   default: mockPrisma,
 }));
 
-jest.unstable_mockModule("../src/sockets/socket.ts", () => ({
+jest.unstable_mockModule("../src/sockets/socket.js", () => ({
   getIO: jest.fn(() => ({
     emit: jest.fn(),
   })),
 }));
 
-jest.unstable_mockModule("../src/services/email.service.ts", () => ({
+jest.unstable_mockModule("../src/services/email.service.js", () => ({
   sendBookingConfirmationEmail: jest.fn(),
   sendBookingCancellationEmail: jest.fn(),
 }));
 
-let createBooking: any;
-
-beforeAll(async () => {
-  const bookingService =
-    await import("../src/services/booking.service.ts");
-
-  createBooking = bookingService.createBooking;
-});
+const { createBooking } = await import(
+  "../src/services/booking.service.js"
+);
 
 describe("createBooking - booking conflict", () => {
   const userId = "user-1";
@@ -95,17 +166,19 @@ describe("createBooking - booking conflict", () => {
   test("should allow a non-overlapping booking", async () => {
     mockPrisma.booking.findFirst.mockResolvedValue(null);
 
-    const createdBooking = {
+    const createdBooking: CreatedBookingMock = {
       id: "booking-1",
       userId,
       venueId,
       startTime,
       endTime,
       status: "PENDING",
+
       venue: {
         id: venueId,
         name: "Test Venue",
       },
+
       user: {
         id: userId,
         name: "Test User",
@@ -134,8 +207,10 @@ describe("createBooking - booking conflict", () => {
         endTime,
         status: "PENDING",
       },
+
       include: {
         venue: true,
+
         user: {
           select: {
             id: true,
